@@ -6,7 +6,7 @@
  *     http://creativecommons.org/publicdomain/zero/1.0/
  */
 
-package com.mycompany.imagej;
+package vesselreconstruction;
 
 import ij.IJ;
 import ij.ImageJ;
@@ -21,7 +21,7 @@ import ij.process.ImageProcessor;
  *
  * @author Johannes Schindelin
  */
-public class Process_Pixels implements PlugInFilter {
+public class VesselReconstructionPlugin implements PlugInFilter {
 	protected ImagePlus image;
 
 	// image property members
@@ -171,7 +171,7 @@ public class Process_Pixels implements PlugInFilter {
 	public static void main(String[] args) throws Exception {
 		// set the plugins.dir property to make the plugin appear in the Plugins menu
 		// see: https://stackoverflow.com/a/7060464/1207769
-		Class<?> clazz = Process_Pixels.class;
+		Class<?> clazz = VesselReconstructionPlugin.class;
 		java.net.URL url = clazz.getProtectionDomain().getCodeSource().getLocation();
 		java.io.File file = new java.io.File(url.toURI());
 		System.setProperty("plugins.dir", file.getAbsolutePath());
