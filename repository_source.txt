@@ -1,0 +1,710 @@
+
+==================================================
+FILE: pom.xml
+==================================================
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+		http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.scijava</groupId>
+		<artifactId>pom-scijava</artifactId>
+		<version>31.1.0</version>
+		<relativePath />
+	</parent>
+
+	<groupId>com.mycompany</groupId>        <!-- FIXME: Your organization groupId here -->
+	<artifactId>VesselReconstruction</artifactId> <!-- FIXME: Your project artifactId here   -->
+	<version>0.1.0-SNAPSHOT</version>
+
+	<name>Process Pixels</name>                                                   <!-- FIXME: Your project name here          -->
+	<description>A Maven project implementing an ImageJ 1.x plugin.</description> <!-- FIXME: Your project description here   -->
+	<url>https://mycompany.com/imagej/process-pixels/</url>                       <!-- FIXME: Your project website here       -->
+	<inceptionYear>2012</inceptionYear>                                           <!-- FIXME: Your project starting year here -->
+	<organization>
+		<name>My Company</name>           <!-- FIXME: Your organization name here    -->
+		<url>https://mycompany.com/</url> <!-- FIXME: Your organization website here -->
+	</organization>
+	<licenses>
+		<license>                         <!-- FIXME: Your license here -->
+			<name>CC0</name>
+			<url>https://creativecommons.org/publicdomain/zero/1.0/</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<!-- See https://imagej.net/contribute/governance#scijava-team-roles -->
+		<developer>
+			<id>octocat</id>                                          <!-- FIXME: Your GitHub handle here -->
+			<name>Noma Onomatopoeia</name>                            <!-- FIXME: Your name here          -->
+			<url>https://mycompany.com/people/noma-onomatopoeia</url> <!-- FIXME: Your website here       -->
+			<roles>
+				<role>founder</role>
+				<role>lead</role>
+				<role>developer</role>
+				<role>debugger</role>
+				<role>reviewer</role>
+				<role>support</role>
+				<role>maintainer</role>
+			</roles>
+		</developer>
+	</developers>
+	<contributors>
+		<contributor>
+			<name>None</name>
+		</contributor>
+	</contributors>
+
+	<mailingLists>
+		<mailingList>
+			<name>Image.sc Forum</name>
+			<archive>https://forum.image.sc/tag/imagej</archive>
+		</mailingList>
+	</mailingLists>
+
+	<scm>
+		<connection>scm:git:https://github.com/imagej/example-legacy-plugin</connection>
+		<developerConnection>scm:git:git@github.com:imagej/example-legacy-plugin</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/imagej/example-legacy-plugin</url>
+	</scm>
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/imagej/example-legacy-plugin/issues</url>
+	</issueManagement>
+	<ciManagement>
+		<system>None</system>
+	</ciManagement>
+
+	<properties>
+		<package-name>com.mycompany.imagej</package-name>                   <!-- FIXME: Your project package prefix here -->
+		<main-class>vesselreconstruction.VesselReconstructionPlugin</main-class>        <!-- FIXME: Your project main class here, or delete for none -->
+		<license.licenseName>cc0</license.licenseName>                      <!-- FIXME: Your license-maven-plugin license code here -->
+		<license.copyrightOwners>My Company, Inc.</license.copyrightOwners> <!-- FIXME: Your organization legal entity name here -->
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>ij</artifactId>
+		</dependency>
+	</dependencies>
+</project>
+
+==================================================
+FILE: src/main/java/vesselreconstruction/detection/BridgeDetector.java
+==================================================
+package vesselreconstruction.detection;
+
+import vesselreconstruction.geometry.BoundaryDistanceCalculator;
+import vesselreconstruction.geometry.BoundaryDistanceResult;
+import vesselreconstruction.geometry.CandidateNeighbourFinder;
+import vesselreconstruction.model.Bridge;
+import vesselreconstruction.model.Lumen;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class BridgeDetector {
+
+    private final CandidateNeighbourFinder neighbourFinder =
+            new CandidateNeighbourFinder();
+
+    private final BoundaryDistanceCalculator distanceCalculator =
+            new BoundaryDistanceCalculator();
+
+    public List<Bridge> detectBridges(List<Lumen> lumina) {
+
+        List<Bridge> bridges = new ArrayList<>();
+
+        for (Lumen lumen : lumina) {
+
+            List<Lumen> neighbours =
+                    neighbourFinder.findNeighbours(lumen, lumina);
+
+            for (Lumen neighbour : neighbours) {
+
+                if (lumen.getId() >= neighbour.getId()) {
+                    continue;
+                }
+
+                BoundaryDistanceResult result =
+                        distanceCalculator.calculate(lumen, neighbour);
+
+                Bridge bridge = new Bridge(
+                        lumen,
+                        neighbour,
+                        result.getPointOnLumenA(),
+                        result.getPointOnLumenB(),
+                        result.getDistance()
+                );
+
+                bridge.setScore(1.0 / (1.0 + result.getDistance()));
+
+                bridges.add(bridge);
+            }
+        }
+
+        return bridges;
+    }
+}
+==================================================
+FILE: src/main/java/vesselreconstruction/detection/ConnectedComponentLabeler.java
+==================================================
+package vesselreconstruction.detection;
+
+import ij.IJ;
+import ij.ImagePlus;
+import ij.process.ImageProcessor;
+import vesselreconstruction.geometry.BoundaryExtractor;
+import vesselreconstruction.model.Lumen;
+
+import java.awt.Point;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ConnectedComponentLabeler {
+
+    private static final int VESSEL = 3;
+    private static final int MIN_LUMEN_SIZE = 100;
+
+    private final BoundaryExtractor boundaryExtractor = new BoundaryExtractor();
+
+    public List<Lumen> detect(ImagePlus image) {
+
+        IJ.log("ConnectedComponentLabeler started.");
+
+        ImageProcessor ip = image.getProcessor();
+
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        boolean[][] visited = new boolean[height][width];
+
+        List<Lumen> lumenList = new ArrayList<>();
+
+        int id = 1;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+
+                if (ip.get(x, y) == VESSEL && !visited[y][x]) {
+
+                    Lumen lumen = floodFill(ip, visited, x, y, id);
+
+                    lumen.finish();
+
+                    if (lumen.getArea() >= MIN_LUMEN_SIZE) {
+
+                        lumen.setBoundaryPixels(
+                                boundaryExtractor.extractBoundary(lumen)
+                        );
+
+                        lumenList.add(lumen);
+
+                        IJ.log(
+                                "Lumen " + id +
+                                        " | area=" + lumen.getArea() +
+                                        " | boundary=" + lumen.getBoundaryPixels().size()
+                        );
+
+                        id++;
+                    }
+                }
+            }
+        }
+
+        IJ.log("");
+        IJ.log("Detected " + lumenList.size() + " lumen objects.");
+
+        return lumenList;
+    }
+
+    private Lumen floodFill(ImageProcessor ip,
+                            boolean[][] visited,
+                            int startX,
+                            int startY,
+                            int id) {
+
+        Lumen lumen = new Lumen(id, null);
+
+        ArrayDeque<Point> queue = new ArrayDeque<>();
+        queue.add(new Point(startX, startY));
+
+        int width = ip.getWidth();
+        int height = ip.getHeight();
+
+        while (!queue.isEmpty()) {
+
+            Point p = queue.removeFirst();
+
+            int x = p.x;
+            int y = p.y;
+
+            if (x < 0 || x >= width || y < 0 || y >= height)
+                continue;
+
+            if (visited[y][x])
+                continue;
+
+            if (ip.get(x, y) != VESSEL)
+                continue;
+
+            visited[y][x] = true;
+
+            lumen.addPixel(new Point(x, y));
+
+            queue.add(new Point(x + 1, y));
+            queue.add(new Point(x - 1, y));
+            queue.add(new Point(x, y + 1));
+            queue.add(new Point(x, y - 1));
+        }
+
+        return lumen;
+    }
+}
+==================================================
+FILE: src/main/java/vesselreconstruction/geometry/BoundaryDistanceCalculator.java
+==================================================
+package vesselreconstruction.geometry;
+
+import vesselreconstruction.model.Lumen;
+
+import java.awt.Point;
+
+public class BoundaryDistanceCalculator {
+
+    public BoundaryDistanceResult calculate(Lumen lumenA, Lumen lumenB) {
+
+        double minDistanceSquared = Double.MAX_VALUE;
+
+        Point bestPointA = null;
+        Point bestPointB = null;
+
+        for (Point pointA : lumenA.getBoundaryPixels()) {
+
+            for (Point pointB : lumenB.getBoundaryPixels()) {
+
+                double dx = pointA.x - pointB.x;
+                double dy = pointA.y - pointB.y;
+
+                double distanceSquared = dx * dx + dy * dy;
+
+                if (distanceSquared < minDistanceSquared) {
+
+                    minDistanceSquared = distanceSquared;
+                    bestPointA = pointA;
+                    bestPointB = pointB;
+                }
+            }
+        }
+
+        double distance = Math.sqrt(minDistanceSquared);
+
+        return new BoundaryDistanceResult(
+                distance,
+                bestPointA,
+                bestPointB
+        );
+    }
+}
+==================================================
+FILE: src/main/java/vesselreconstruction/geometry/BoundaryDistanceResult.java
+==================================================
+package vesselreconstruction.geometry;
+
+import java.awt.Point;
+
+public class BoundaryDistanceResult {
+
+    private final double distance;
+    private final Point pointOnLumenA;
+    private final Point pointOnLumenB;
+
+    public BoundaryDistanceResult(double distance,
+                                  Point pointOnLumenA,
+                                  Point pointOnLumenB) {
+
+        this.distance = distance;
+        this.pointOnLumenA = pointOnLumenA;
+        this.pointOnLumenB = pointOnLumenB;
+    }
+
+    public double getDistance() {
+        return distance;
+    }
+
+    public Point getPointOnLumenA() {
+        return pointOnLumenA;
+    }
+
+    public Point getPointOnLumenB() {
+        return pointOnLumenB;
+    }
+}
+==================================================
+FILE: src/main/java/vesselreconstruction/geometry/BoundaryExtractor.java
+==================================================
+package vesselreconstruction.geometry;
+
+import vesselreconstruction.model.Lumen;
+
+import java.awt.Point;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+public class BoundaryExtractor {
+
+    public List<Point> extractBoundary(Lumen lumen) {
+
+        List<Point> boundary = new ArrayList<>();
+
+        Set<Point> pixels = new HashSet<>(lumen.getPixels());
+
+        for (Point p : lumen.getPixels()) {
+
+            if (isBoundaryPixel(p, pixels)) {
+                boundary.add(p);
+            }
+        }
+
+        return boundary;
+    }
+
+    private boolean isBoundaryPixel(Point p, Set<Point> pixels) {
+
+        return !pixels.contains(new Point(p.x + 1, p.y)) ||
+                !pixels.contains(new Point(p.x - 1, p.y)) ||
+                !pixels.contains(new Point(p.x, p.y + 1)) ||
+                !pixels.contains(new Point(p.x, p.y - 1));
+    }
+}
+==================================================
+FILE: src/main/java/vesselreconstruction/geometry/CandidateNeighbourFinder.java
+==================================================
+package vesselreconstruction.geometry;
+
+import vesselreconstruction.model.Lumen;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class CandidateNeighbourFinder {
+
+    private static final int SEARCH_MARGIN = 30;
+
+    public List<Lumen> findNeighbours(Lumen lumen, List<Lumen> allLumina) {
+
+        List<Lumen> neighbours = new ArrayList<>();
+
+        int minX = lumen.getMinX() - SEARCH_MARGIN;
+        int minY = lumen.getMinY() - SEARCH_MARGIN;
+        int maxX = lumen.getMaxX() + SEARCH_MARGIN;
+        int maxY = lumen.getMaxY() + SEARCH_MARGIN;
+
+        for (Lumen other : allLumina) {
+
+            if (other == lumen) {
+                continue;
+            }
+
+            boolean overlap =
+                    other.getMaxX() >= minX &&
+                            other.getMinX() <= maxX &&
+                            other.getMaxY() >= minY &&
+                            other.getMinY() <= maxY;
+
+            if (overlap) {
+                neighbours.add(other);
+            }
+        }
+
+        return neighbours;
+    }
+}
+==================================================
+FILE: src/main/java/vesselreconstruction/geometry/LumenFeatureCalculator.java
+==================================================
+package vesselreconstruction.geometry;
+
+public class LumenFeatureCalculator {
+}
+
+==================================================
+FILE: src/main/java/vesselreconstruction/model/Bridge.java
+==================================================
+package vesselreconstruction.model;
+
+import java.awt.Point;
+
+public class Bridge {
+
+    private final Lumen lumenA;
+    private final Lumen lumenB;
+
+    private final Point pointA;
+    private final Point pointB;
+
+    private final double distance;
+
+    private double score;
+
+    public Bridge(Lumen lumenA,
+                  Lumen lumenB,
+                  Point pointA,
+                  Point pointB,
+                  double distance) {
+
+        this.lumenA = lumenA;
+        this.lumenB = lumenB;
+        this.pointA = pointA;
+        this.pointB = pointB;
+        this.distance = distance;
+    }
+
+    public Lumen getLumenA() {
+        return lumenA;
+    }
+
+    public Lumen getLumenB() {
+        return lumenB;
+    }
+
+    public Point getPointA() {
+        return pointA;
+    }
+
+    public Point getPointB() {
+        return pointB;
+    }
+
+    public double getDistance() {
+        return distance;
+    }
+
+    public double getScore() {
+        return score;
+    }
+
+    public void setScore(double score) {
+        this.score = score;
+    }
+}
+==================================================
+FILE: src/main/java/vesselreconstruction/model/Lumen.java
+==================================================
+package vesselreconstruction.model;
+
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Lumen {
+
+    private final int id;
+
+    private final List<Point> pixels = new ArrayList<>();
+    private final List<Point> boundary = new ArrayList<>();
+
+    private Point centroid;
+
+    /*
+     * Basic geometry
+     */
+    private int area;
+    private double perimeter;
+
+    /*
+     * Shape descriptors
+     */
+    private double equivalentDiameter;
+    private double circularity;
+    private double solidity;
+    private double aspectRatio;
+
+    /*
+     * Bounding box
+     */
+    private Rectangle boundingBox;
+
+    /*
+     * Miscellaneous
+     */
+    private boolean touchesBorder;
+
+    public Lumen(int id) {
+        this.id = id;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public List<Point> getPixels() {
+        return pixels;
+    }
+
+    public List<Point> getBoundary() {
+        return boundary;
+    }
+
+    public Point getCentroid() {
+        return centroid;
+    }
+
+    public void setCentroid(Point centroid) {
+        this.centroid = centroid;
+    }
+
+    public int getArea() {
+        return area;
+    }
+
+    public void setArea(int area) {
+        this.area = area;
+    }
+
+    public double getPerimeter() {
+        return perimeter;
+    }
+
+    public void setPerimeter(double perimeter) {
+        this.perimeter = perimeter;
+    }
+
+    public double getEquivalentDiameter() {
+        return equivalentDiameter;
+    }
+
+    public void setEquivalentDiameter(double equivalentDiameter) {
+        this.equivalentDiameter = equivalentDiameter;
+    }
+
+    public double getCircularity() {
+        return circularity;
+    }
+
+    public void setCircularity(double circularity) {
+        this.circularity = circularity;
+    }
+
+    public double getSolidity() {
+        return solidity;
+    }
+
+    public void setSolidity(double solidity) {
+        this.solidity = solidity;
+    }
+
+    public double getAspectRatio() {
+        return aspectRatio;
+    }
+
+    public void setAspectRatio(double aspectRatio) {
+        this.aspectRatio = aspectRatio;
+    }
+
+    public Rectangle getBoundingBox() {
+        return boundingBox;
+    }
+
+    public void setBoundingBox(Rectangle boundingBox) {
+        this.boundingBox = boundingBox;
+    }
+
+    public boolean touchesBorder() {
+        return touchesBorder;
+    }
+
+    public void setTouchesBorder(boolean touchesBorder) {
+        this.touchesBorder = touchesBorder;
+    }
+}
+==================================================
+FILE: src/main/java/vesselreconstruction/VesselReconstructionPlugin.java
+==================================================
+package vesselreconstruction;
+
+import ij.IJ;
+import ij.ImagePlus;
+import ij.WindowManager;
+import ij.gui.Overlay;
+import ij.gui.PointRoi;
+import ij.plugin.PlugIn;
+import vesselreconstruction.detection.ConnectedComponentLabeler;
+import vesselreconstruction.model.Lumen;
+
+import java.awt.Color;
+import java.awt.Point;
+import java.util.List;
+
+public class VesselReconstructionPlugin implements PlugIn {
+
+	@Override
+	public void run(String arg) {
+
+		ImagePlus image = WindowManager.getCurrentImage();
+
+		if (image == null) {
+			IJ.showMessage(
+					"Vessel Reconstruction",
+					"Please open a classified image first."
+			);
+			return;
+		}
+
+		ConnectedComponentLabeler labeler = new ConnectedComponentLabeler();
+		List<Lumen> lumina = labeler.detect(image);
+
+		Overlay overlay = new Overlay();
+
+		for (Lumen lumen : lumina) {
+
+			for (Point p : lumen.getBoundaryPixels()) {
+
+				PointRoi point = new PointRoi(p.x, p.y);
+				point.setStrokeColor(Color.RED);
+
+				overlay.add(point);
+			}
+		}
+
+		image.setOverlay(overlay);
+		image.updateAndDraw();
+
+		IJ.showMessage(
+				"Vessel Reconstruction",
+				"Detected " + lumina.size() + " lumen objects."
+		);
+	}
+}
+==================================================
+FILE: src/main/resources/plugins.config
+==================================================
+# A single .jar file can contain multiple plugins, specified in separate lines.
+#
+# The format is: <menu>, "<menu label>", <class name>
+#
+# If something like ("<arg>") is appended to the class name, the setup() method
+# will get that as arg parameter; otherwise arg is simply the empty string.
+
+Plugins>Vessel Reconstruction, "Vessel Reconstruction", vesselreconstruction.VesselReconstructionPlugin
+==================================================
+FILE: target/classes/plugins.config
+==================================================
+# A single .jar file can contain multiple plugins, specified in separate lines.
+#
+# The format is: <menu>, "<menu label>", <class name>
+#
+# If something like ("<arg>") is appended to the class name, the setup() method
+# will get that as arg parameter; otherwise arg is simply the empty string.
+
+Plugins>Vessel Reconstruction, "Vessel Reconstruction", vesselreconstruction.VesselReconstructionPlugin

@@ -12,25 +12,29 @@ public class BoundaryExtractor {
 
     public List<Point> extractBoundary(Lumen lumen) {
 
-        List<Point> boundary = new ArrayList<>();
+        List<Point> boundaryPixels = new ArrayList<>();
 
-        Set<Point> pixels = new HashSet<>(lumen.getPixels());
+        Set<Point> lumenPixels = new HashSet<>(lumen.getPixels());
 
-        for (Point p : lumen.getPixels()) {
+        for (Point pixel : lumen.getPixels()) {
 
-            if (isBoundaryPixel(p, pixels)) {
-                boundary.add(p);
+            if (isBoundaryPixel(pixel, lumenPixels)) {
+                boundaryPixels.add(pixel);
             }
         }
 
-        return boundary;
+        return boundaryPixels;
     }
 
-    private boolean isBoundaryPixel(Point p, Set<Point> pixels) {
+    /**
+     * A pixel belongs to the boundary if at least one of its
+     * four direct neighbours is not part of the lumen.
+     */
+    private boolean isBoundaryPixel(Point pixel, Set<Point> lumenPixels) {
 
-        return !pixels.contains(new Point(p.x + 1, p.y)) ||
-                !pixels.contains(new Point(p.x - 1, p.y)) ||
-                !pixels.contains(new Point(p.x, p.y + 1)) ||
-                !pixels.contains(new Point(p.x, p.y - 1));
+        return !lumenPixels.contains(new Point(pixel.x + 1, pixel.y))
+                || !lumenPixels.contains(new Point(pixel.x - 1, pixel.y))
+                || !lumenPixels.contains(new Point(pixel.x, pixel.y + 1))
+                || !lumenPixels.contains(new Point(pixel.x, pixel.y - 1));
     }
 }

@@ -8,35 +8,38 @@ public class BoundaryDistanceCalculator {
 
     public BoundaryDistanceResult calculate(Lumen lumenA, Lumen lumenB) {
 
-        double minDistanceSquared = Double.MAX_VALUE;
+        double minimumDistanceSquared = Double.MAX_VALUE;
 
-        Point bestPointA = null;
-        Point bestPointB = null;
+        Point closestPointOnLumenA = null;
+        Point closestPointOnLumenB = null;
 
         for (Point pointA : lumenA.getBoundaryPixels()) {
 
             for (Point pointB : lumenB.getBoundaryPixels()) {
 
-                double dx = pointA.x - pointB.x;
-                double dy = pointA.y - pointB.y;
+                double distanceSquared = squaredDistance(pointA, pointB);
 
-                double distanceSquared = dx * dx + dy * dy;
+                if (distanceSquared < minimumDistanceSquared) {
 
-                if (distanceSquared < minDistanceSquared) {
-
-                    minDistanceSquared = distanceSquared;
-                    bestPointA = pointA;
-                    bestPointB = pointB;
+                    minimumDistanceSquared = distanceSquared;
+                    closestPointOnLumenA = pointA;
+                    closestPointOnLumenB = pointB;
                 }
             }
         }
 
-        double distance = Math.sqrt(minDistanceSquared);
-
         return new BoundaryDistanceResult(
-                distance,
-                bestPointA,
-                bestPointB
+                Math.sqrt(minimumDistanceSquared),
+                closestPointOnLumenA,
+                closestPointOnLumenB
         );
+    }
+
+    private double squaredDistance(Point pointA, Point pointB) {
+
+        double dx = pointA.x - pointB.x;
+        double dy = pointA.y - pointB.y;
+
+        return dx * dx + dy * dy;
     }
 }

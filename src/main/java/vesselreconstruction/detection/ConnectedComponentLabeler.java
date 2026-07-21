@@ -3,7 +3,7 @@ package vesselreconstruction.detection;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.process.ImageProcessor;
-import vesselreconstruction.geometry.BoundaryExtractor;
+import vesselreconstruction.geometry.BoundaryTracer;
 import vesselreconstruction.model.Lumen;
 
 import java.awt.Point;
@@ -16,7 +16,7 @@ public class ConnectedComponentLabeler {
     private static final int VESSEL = 3;
     private static final int MIN_LUMEN_SIZE = 100;
 
-    private final BoundaryExtractor boundaryExtractor = new BoundaryExtractor();
+    private final BoundaryTracer boundaryTracer = new BoundaryTracer();
 
     public List<Lumen> detect(ImagePlus image) {
 
@@ -45,7 +45,7 @@ public class ConnectedComponentLabeler {
                     if (lumen.getArea() >= MIN_LUMEN_SIZE) {
 
                         lumen.setBoundaryPixels(
-                                boundaryExtractor.extractBoundary(lumen)
+                                boundaryTracer.traceBoundary(lumen)
                         );
 
                         lumenList.add(lumen);
@@ -74,7 +74,7 @@ public class ConnectedComponentLabeler {
                             int startY,
                             int id) {
 
-        Lumen lumen = new Lumen(id, null);
+        Lumen lumen = new Lumen(id);
 
         ArrayDeque<Point> queue = new ArrayDeque<>();
         queue.add(new Point(startX, startY));

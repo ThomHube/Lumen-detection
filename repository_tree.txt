@@ -1,0 +1,48 @@
+.
+├── pom.xml
+├── README.md
+├── repository_source.txt
+├── repository_tree.txt
+├── src
+│   └── main
+│       ├── java
+│       │   └── vesselreconstruction
+│       │       ├── detection
+│       │       │   ├── BridgeDetector.java
+│       │       │   └── ConnectedComponentLabeler.java
+│       │       ├── geometry
+│       │       │   ├── BoundaryDistanceCalculator.java
+│       │       │   ├── BoundaryDistanceResult.java
+│       │       │   ├── BoundaryExtractor.java
+│       │       │   ├── CandidateNeighbourFinder.java
+│       │       │   └── LumenFeatureCalculator.java
+│       │       ├── model
+│       │       │   ├── Bridge.java
+│       │       │   └── Lumen.java
+│       │       └── VesselReconstructionPlugin.java
+│       └── resources
+│           └── plugins.config
+└── target
+    ├── classes
+    │   ├── plugins.config
+    │   └── vesselreconstruction
+    │       ├── detection
+    │       │   ├── BridgeDetector.class
+    │       │   └── ConnectedComponentLabeler.class
+    │       ├── geometry
+    │       │   ├── BoundaryDistanceCalculator.class
+    │       │   ├── BoundaryDistanceResult.class
+    │       │   ├── BoundaryExtractor.class
+    │       │   └── CandidateNeighbourFinder.class
+    │       ├── model
+    │       │   ├── Bridge.class
+    │       │   └── Lumen.class
+    │       └── VesselReconstructionPlugin.class
+    ├── generated-sources
+    │   └── annotations
+    ├── maven-archiver
+    │   └── pom.properties
+    ├── VesselReconstruction-0.1.0-SNAPSHOT.jar
+    └── VesselReconstruction-0.1.0-SNAPSHOT-sources.jar
+
+18 directories, 28 files

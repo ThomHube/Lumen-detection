@@ -21,34 +21,50 @@ public class BridgeDetector {
 
         List<Bridge> bridges = new ArrayList<>();
 
-        for (Lumen lumen : lumina) {
+        for (Lumen referenceLumen : lumina) {
 
             List<Lumen> neighbours =
-                    neighbourFinder.findNeighbours(lumen, lumina);
+                    neighbourFinder.findNeighbours(referenceLumen, lumina);
 
-            for (Lumen neighbour : neighbours) {
+            for (Lumen candidateLumen : neighbours) {
 
-                if (lumen.getId() >= neighbour.getId()) {
+                /*
+                 * Avoid creating the same bridge twice.
+                 */
+                if (referenceLumen.getId() >= candidateLumen.getId()) {
                     continue;
                 }
 
-                BoundaryDistanceResult result =
-                        distanceCalculator.calculate(lumen, neighbour);
-
-                Bridge bridge = new Bridge(
-                        lumen,
-                        neighbour,
-                        result.getPointOnLumenA(),
-                        result.getPointOnLumenB(),
-                        result.getDistance()
+                bridges.add(
+                        createBridge(referenceLumen, candidateLumen)
                 );
-
-                bridge.setScore(1.0 / (1.0 + result.getDistance()));
-
-                bridges.add(bridge);
             }
         }
 
         return bridges;
+    }
+
+    private Bridge createBridge(Lumen lumenA, Lumen lumenB) {
+
+        BoundaryDistanceResult distanceResult =
+                distanceCalculator.calculate(lumenA, lumenB);
+
+        Bridge bridge = new Bridge(
+                lumenA,
+                lumenB,
+                distanceResult.getPointOnLumenA(),
+                distanceResult.getPointOnLumenB(),
+                distanceResult.getDistance()
+        );
+
+        /*
+         * Temporary scoring.
+         * Will later be replaced by the BridgeValidator.
+         */
+        bridge.setScore(
+                1.0 / (1.0 + distanceResult.getDistance())
+        );
+
+        return bridge;
     }
 }

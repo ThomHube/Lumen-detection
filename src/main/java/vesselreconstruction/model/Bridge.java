@@ -2,6 +2,11 @@ package vesselreconstruction.model;
 
 import java.awt.Point;
 
+/**
+ * Represents a potential bridge between two neighbouring lumen objects.
+ * A bridge is defined by the closest pair of boundary points and the
+ * Euclidean distance between them.
+ */
 public class Bridge {
 
     private final Lumen lumenA;
@@ -12,7 +17,10 @@ public class Bridge {
 
     private final double distance;
 
-    private double score;
+    /**
+     * Confidence score assigned by the bridge detection/validation pipeline.
+     */
+    private double bridgeScore;
 
     public Bridge(Lumen lumenA,
                   Lumen lumenB,
@@ -48,10 +56,10 @@ public class Bridge {
     }
 
     public double getScore() {
-        return score;
+        return bridgeScore;
     }
 
     public void setScore(double score) {
-        this.score = score;
+        this.bridgeScore = score;
     }
 }

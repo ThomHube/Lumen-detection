@@ -10,32 +10,12 @@ public class Lumen {
     private final int id;
 
     private final List<Point> pixels = new ArrayList<>();
-    private final List<Point> boundary = new ArrayList<>();
+    private final List<Point> boundaryPixels = new ArrayList<>();
 
     private Point centroid;
-
-    /*
-     * Basic geometry
-     */
-    private int area;
-    private double perimeter;
-
-    /*
-     * Shape descriptors
-     */
-    private double equivalentDiameter;
-    private double circularity;
-    private double solidity;
-    private double aspectRatio;
-
-    /*
-     * Bounding box
-     */
     private Rectangle boundingBox;
 
-    /*
-     * Miscellaneous
-     */
+    private int area;
     private boolean touchesBorder;
 
     public Lumen(int id) {
@@ -46,76 +26,33 @@ public class Lumen {
         return id;
     }
 
+    public void addPixel(Point point) {
+        pixels.add(point);
+    }
+
     public List<Point> getPixels() {
         return pixels;
     }
 
-    public List<Point> getBoundary() {
-        return boundary;
+    public List<Point> getBoundaryPixels() {
+        return boundaryPixels;
+    }
+
+    public void setBoundaryPixels(List<Point> boundaryPixels) {
+        this.boundaryPixels.clear();
+        this.boundaryPixels.addAll(boundaryPixels);
     }
 
     public Point getCentroid() {
         return centroid;
     }
 
-    public void setCentroid(Point centroid) {
-        this.centroid = centroid;
-    }
-
-    public int getArea() {
-        return area;
-    }
-
-    public void setArea(int area) {
-        this.area = area;
-    }
-
-    public double getPerimeter() {
-        return perimeter;
-    }
-
-    public void setPerimeter(double perimeter) {
-        this.perimeter = perimeter;
-    }
-
-    public double getEquivalentDiameter() {
-        return equivalentDiameter;
-    }
-
-    public void setEquivalentDiameter(double equivalentDiameter) {
-        this.equivalentDiameter = equivalentDiameter;
-    }
-
-    public double getCircularity() {
-        return circularity;
-    }
-
-    public void setCircularity(double circularity) {
-        this.circularity = circularity;
-    }
-
-    public double getSolidity() {
-        return solidity;
-    }
-
-    public void setSolidity(double solidity) {
-        this.solidity = solidity;
-    }
-
-    public double getAspectRatio() {
-        return aspectRatio;
-    }
-
-    public void setAspectRatio(double aspectRatio) {
-        this.aspectRatio = aspectRatio;
-    }
-
     public Rectangle getBoundingBox() {
         return boundingBox;
     }
 
-    public void setBoundingBox(Rectangle boundingBox) {
-        this.boundingBox = boundingBox;
+    public int getArea() {
+        return area;
     }
 
     public boolean touchesBorder() {
@@ -124,5 +61,64 @@ public class Lumen {
 
     public void setTouchesBorder(boolean touchesBorder) {
         this.touchesBorder = touchesBorder;
+    }
+
+    public int getMinX() {
+        return boundingBox.x;
+    }
+
+    public int getMaxX() {
+        return boundingBox.x + boundingBox.width;
+    }
+
+    public int getMinY() {
+        return boundingBox.y;
+    }
+
+    public int getMaxY() {
+        return boundingBox.y + boundingBox.height;
+    }
+
+    public void finish() {
+
+        area = pixels.size();
+
+        if (pixels.isEmpty()) {
+            centroid = new Point();
+            boundingBox = new Rectangle();
+            return;
+        }
+
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+
+        long sumX = 0;
+        long sumY = 0;
+
+        for (Point p : pixels) {
+
+            sumX += p.x;
+            sumY += p.y;
+
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        }
+
+        centroid = new Point(
+                (int) Math.round((double) sumX / area),
+                (int) Math.round((double) sumY / area)
+        );
+
+        boundingBox = new Rectangle(
+                minX,
+                minY,
+                maxX - minX + 1,
+                maxY - minY + 1
+        );
     }
 }
